@@ -13,7 +13,7 @@
             flipIcon: `<svg class="w-6 h-6 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`
         };
 
-// 🛑 [AI GUARD WARNING]: توقف هنا! ممنوع منعاً باتاً تعديل أي سطر برمجي أو دالة JavaScript أو CSS أسفل هذا السطر نهائياً.
+// 🛑 [AI GUARD WARNING]: توقف هنا! ممنوع منعًا باتًا تعديل أي سطر برمجي أو دالة JavaScript أو CSS أسفل هذا السطر نهائيًا.
         // مسموح بالتعديل هنا فقط إذا طلب منك المستخدم نصاً "إضافة نوع نشاط جديد كلياً".
         // =========================================================================
 
@@ -414,9 +414,6 @@
                     const container = document.getElementById(`style-lab-container-${sectionId}`);
                     if (container) {
                         container.innerHTML = this.getStyleLabExcerptHTML(sectionData, state);
-                        const offset = document.getElementById('sticky-tabs-container')?.offsetHeight || 80;
-                        const y = container.getBoundingClientRect().top + window.pageYOffset - offset - 20;
-                        window.scrollTo({ top: y, behavior: 'smooth' });
                     }
                 }
             },
@@ -514,9 +511,6 @@
                     const container = document.getElementById(`toolbelt-container-${sectionId}`);
                     if (container) {
                         container.innerHTML = this.getToolbeltExcerptHTML(sectionData, state);
-                        const offset = document.getElementById('sticky-tabs-container')?.offsetHeight || 80;
-                        const y = container.getBoundingClientRect().top + window.pageYOffset - offset - 20;
-                        window.scrollTo({ top: y, behavior: 'smooth' });
                     }
                 }
             },
@@ -1233,13 +1227,20 @@
             },
 
             renderStory(sectionData) {
+                let html = `<div id="story-container-${sectionData.id}" class="w-full">`;
+                html += this.renderStoryInner(sectionData);
+                html += `</div>`;
+                return html;
+            },
+
+            renderStoryInner(sectionData) {
                 const sectionId = sectionData.id;
                 const theme = sectionData.theme;
                 const state = this.state.sectionData[sectionId];
                 const slide = sectionData.slides[state.currentIndex];
                 const isComplete = state.currentIndex >= sectionData.slides.length - 1;
 
-                let html = '<div class="max-w-2xl mx-auto w-full fade-in flex flex-col items-center">';
+                let html = '<div class="max-w-2xl mx-auto w-full flex flex-col items-center">';
 
                 let progressHTML = '<div class="flex w-full gap-2 mb-6 px-4">';
                 sectionData.slides.forEach((_, idx) => {
@@ -1254,18 +1255,32 @@
                 html += progressHTML;
 
                 html += `
-                <div class="bg-white border-2 border-${theme}-200 rounded-[2.5rem] p-8 md:p-12 shadow-lg w-full flex flex-col items-center text-center relative min-h-[450px] justify-center transform transition-all duration-500 overflow-hidden">
-                    <div class="text-7xl md:text-8xl mb-8 drop-shadow-md transition-transform hover:scale-110 fade-in" key="${state.currentIndex}">${slide.icon}</div>
-                    <h3 class="text-3xl md:text-4xl font-bold text-${theme}-800 mb-6 fade-in">${slide.title}</h3>
-                    <p class="text-xl md:text-2xl font-medium text-slate-700 leading-relaxed fade-in px-4 md:px-8">${slide.text}</p>
+                <div class="bg-white border-2 border-${theme}-200 rounded-[2.5rem] p-8 md:p-12 shadow-lg w-full flex flex-col items-center text-center relative min-h-[450px] justify-center transform transition-all duration-500 overflow-hidden select-none" 
+                     ontouchstart="App.handleSwipeStart(event)" 
+                     ontouchend="App.handleSwipeEnd(event, '${sectionId}')">
                     
-                    <div class="absolute bottom-6 w-full px-6 flex justify-between items-center left-0">
-                        <button ${state.currentIndex === 0 ? 'disabled' : `onclick="App.handleStoryNav('${sectionId}', -1)"`} class="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 md:hover:bg-slate-200 transition-colors active:scale-95 ${state.currentIndex === 0 ? 'opacity-0 pointer-events-none' : ''}">
-                            <svg class="w-7 h-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </button>
-                        <button ${isComplete ? 'disabled' : `onclick="App.handleStoryNav('${sectionId}', 1)"`} class="w-12 h-12 flex items-center justify-center rounded-full bg-${theme}-100 text-${theme}-600 md:hover:bg-${theme}-200 transition-colors active:scale-95 ${isComplete ? 'opacity-0 pointer-events-none' : ''}">
-                            <svg class="w-7 h-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                        </button>
+                    <!-- منطقة النقر لليسار (التالي) -->
+                    <button ${isComplete ? 'disabled' : `onclick="App.handleStoryNav('${sectionId}', 1)"`} class="absolute top-0 left-0 w-24 md:w-32 h-full z-10 flex items-center justify-start opacity-0 hover:opacity-100 transition-opacity duration-300 outline-none ${isComplete ? 'cursor-default pointer-events-none' : 'cursor-pointer'}">
+                        <div class="w-12 h-24 md:w-16 md:h-32 flex items-center justify-center rounded-r-2xl md:rounded-r-3xl bg-gradient-to-r from-slate-100 to-transparent text-${theme}-600 border-l-4 border-${theme}-400">
+                            <svg class="w-8 h-8 md:w-10 md:h-10 drop-shadow ml-1 md:ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </div>
+                    </button>
+
+                    <!-- منطقة النقر لليمين (السابق) -->
+                    <button ${state.currentIndex === 0 ? 'disabled' : `onclick="App.handleStoryNav('${sectionId}', -1)"`} class="absolute top-0 right-0 w-24 md:w-32 h-full z-10 flex items-center justify-end opacity-0 hover:opacity-100 transition-opacity duration-300 outline-none ${state.currentIndex === 0 ? 'cursor-default pointer-events-none' : 'cursor-pointer'}">
+                        <div class="w-12 h-24 md:w-16 md:h-32 flex items-center justify-center rounded-l-2xl md:rounded-l-3xl bg-gradient-to-l from-slate-100 to-transparent text-slate-500 border-r-4 border-slate-300">
+                            <svg class="w-8 h-8 md:w-10 md:h-10 drop-shadow mr-1 md:mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </button>
+
+                    <div class="text-7xl md:text-8xl mb-8 drop-shadow-md transition-transform hover:scale-110 z-0 fade-in pointer-events-none" key="${state.currentIndex}">${slide.icon}</div>
+                    <h3 class="text-3xl md:text-4xl font-bold text-${theme}-800 mb-6 z-0 fade-in px-6 md:px-12 pointer-events-none">${slide.title}</h3>
+                    <p class="text-xl md:text-2xl font-medium text-slate-700 leading-relaxed z-0 fade-in px-6 md:px-16 pointer-events-none">${slide.text}</p>
+                    
+                    <div class="absolute bottom-5 w-full flex justify-center items-center opacity-40 md:hidden pointer-events-none z-0 text-slate-400 gap-3 text-sm font-semibold">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        <span>اسحب للتنقل</span>
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </div>
                 </div>`;
 
@@ -1273,6 +1288,15 @@
 
                 html += '</div>';
                 return html;
+            },
+
+
+            updateStoryPartial(sectionId) {
+                const sectionDef = APP_DATA.sections.find(s => s.id === sectionId);
+                const container = document.getElementById(`story-container-${sectionId}`);
+                if (container) {
+                    container.innerHTML = this.renderStoryInner(sectionDef);
+                }
             },
 
             handleStoryNav(sectionId, dir) {
@@ -1288,15 +1312,37 @@
                     if (this.state.progress[sectionId].answered === sectionData.slides.length) {
                         this.checkFinalEvaluation();
                     }
-                    this.updateUI();
+                    
+                    this.updateStoryPartial(sectionId);
                     this.updateTabs();
+                }
+            },
 
-                    const container = document.getElementById(`section-${sectionId}`);
-                    if (container) {
-                        const offset = document.getElementById('sticky-tabs-container')?.offsetHeight || 80;
-                        const y = container.getBoundingClientRect().top + window.pageYOffset - offset - 20;
-                        window.scrollTo({ top: y, behavior: 'smooth' });
-                    }
+            touchStartX: 0,
+            touchEndX: 0,
+
+            handleSwipeStart(e) {
+                this.touchStartX = e.changedTouches[0].screenX;
+            },
+
+            handleSwipeEnd(e, sectionId) {
+                this.touchEndX = e.changedTouches[0].screenX;
+                this.handleSwipeGesture(sectionId);
+            },
+
+            handleSwipeGesture(sectionId) {
+                const threshold = 50; 
+                const state = this.state.sectionData[sectionId];
+                if (!state) return;
+                
+                const sectionData = APP_DATA.sections.find(s => s.id === sectionId);
+                const isComplete = state.currentIndex >= sectionData.slides.length - 1;
+                const isFirst = state.currentIndex === 0;
+
+                if (this.touchEndX < this.touchStartX - threshold) {
+                    if (!isComplete) this.handleStoryNav(sectionId, 1);
+                } else if (this.touchEndX > this.touchStartX + threshold) {
+                    if (!isFirst) this.handleStoryNav(sectionId, -1);
                 }
             },
 
