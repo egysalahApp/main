@@ -83,6 +83,13 @@ const App = {
                     return { originalQuestion: q, options: shuffleArray(opts), answered: false, selectedOption: null, showHint: false, hintAnimate: false, answerAnimate: false };
                 });
             }
+            else if (sec.type === 'tap_to_fill') {
+                this.state.progress[sec.id] = { answered: 0, total: sec.questions.length, score: 0 };
+                this.state.sectionData[sec.id] = sec.questions.map(q => {
+                    let opts = q.options.map((opt, oIdx) => ({ text: opt, isCorrect: oIdx === q.correct }));
+                    return { originalQuestion: q, options: shuffleArray(opts), answered: false, selectedOption: null, showHint: false, hintAnimate: false, answerAnimate: false };
+                });
+            }
             else if (sec.type === 'classify') {
                 this.state.progress[sec.id] = { answered: 0, total: sec.questions.length, score: 0 };
                 let placedItems = {};
@@ -230,6 +237,7 @@ const App = {
             case 'error_correction': return this.renderErrorCorrection(sectionData);
             case 'flashcards': return this.renderFlashcards(sectionData);
             case 'mcq': return this.renderStandardSection(sectionData);
+            case 'tap_to_fill': return this.renderTapToFill(sectionData);
             case 'sort': return this.renderSort(sectionData);
             case 'spotting': return this.renderSpotting(sectionData);
             case 'golden_envelope': return this.renderGoldenEnvelope(sectionData);
@@ -431,6 +439,7 @@ const App = {
             const container = document.getElementById(`style-lab-container-${sectionId}`);
             if (container) {
                 container.innerHTML = this.getStyleLabExcerptHTML(sectionData, state);
+                this.scrollToActiveCard(sectionId);
             }
         }
     },
@@ -528,6 +537,7 @@ const App = {
             const container = document.getElementById(`toolbelt-container-${sectionId}`);
             if (container) {
                 container.innerHTML = this.getToolbeltExcerptHTML(sectionData, state);
+                this.scrollToActiveCard(sectionId);
             }
         }
     },
@@ -1299,6 +1309,7 @@ const App = {
 
             this.updateStoryPartial(sectionId);
             this.updateTabs();
+            this.scrollToActiveCard(sectionId);
         }
     },
 
@@ -1889,6 +1900,35 @@ const App = {
             }, 30);
         });
     },
+    scrollToActiveCard(sectionId) {
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                const containers = [
+                    `story-container-${sectionId}`,
+                    `style-lab-container-${sectionId}`,
+                    `toolbelt-container-${sectionId}`,
+                    `${sectionId}-flashcards-container`,
+                    `${sectionId}-classify-container`,
+                    `${sectionId}-sort-container`
+                ];
+                let target = null;
+                for (let id of containers) {
+                    target = document.getElementById(id);
+                    if (target) break;
+                }
+
+                if (!target) target = document.getElementById(`section-${sectionId}`);
+
+                if (target) {
+                    const stickyTabs = document.getElementById('sticky-tabs-container');
+                    const headerOffset = stickyTabs ? stickyTabs.offsetHeight : 80;
+                    const elementPosition = target.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset - 20;
+                    window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+                }
+            }, 30);
+        });
+    },
     scrollTabIntoView(tabId) {
         requestAnimationFrame(() => {
             setTimeout(() => {
@@ -1954,6 +1994,131 @@ const App = {
         this.updateUI();
         this.scrollToContent();
     },
+    renderTapToFill(sectionData) {
+        const sectionId = sectionData.id;
+        const progress = this.state.progress[sectionId];
+        const isComplete = progress.total > 0 && progress.answered === progress.total;
+        const questions = this.state.sectionData[sectionId];
+        let html = '<div class="fade-in">';
+        if (sectionData.description) { html += `<div class="text-center mb-8"><p class="text-lg md:text-xl text-${sectionData.theme}-800 font-semibold bg-${sectionData.theme}-50 bg-opacity-60 p-4 md:p-5 rounded-2xl shadow-sm inline-block w-full">${sectionData.description}</p></div>`; }
+        questions.forEach((qState, idx) => { html += `<div id="${sectionId}-wrapper-${idx}">${this.renderTapToFillCard(qState, idx, sectionId, sectionData.theme, sectionData.type)}</div>`; });
+
+        html += `<div id="section-result-area-${sectionId}">`;
+        if (isComplete) { html += AppHelpers.getResultBoxHTML(sectionData.title, sectionData.theme, progress.score, progress.total, 'mt-12'); }
+        html += '</div></div>';
+        html += `<div id="section-footer-area-${sectionId}" class="w-full">`;
+        html += this.renderSectionFooterControls(sectionId, isComplete);
+        html += `</div>`;
+        return html;
+    },
+
+    renderTapToFillCard(qState, idx, sectionId, theme) {
+        const { originalQuestion: q, options, answered, selectedOption, showHint, hintAnimate, answerAnimate } = qState;
+        const isSelectedCorrect = selectedOption && selectedOption.isCorrect;
+        const hintFadeClass = hintAnimate ? 'smooth-expand' : '';
+        const answerFadeClass = answerAnimate ? 'smooth-expand' : '';
+        let ringClass = answered ? (isSelectedCorrect ? 'ring-2 ring-emerald-400' : 'ring-2 ring-rose-400') : '';
+
+        // Parse Question text and replace "........" (3 or more dots) with our blank span
+        let textSegments = q.text.split(/\.{3,}/);
+
+        // Calculate the maximum length among the options to reserve consistent space
+        const maxOptLength = Math.max(...options.map(o => o.text.length));
+        // Using 'ch' unit ensures width is proportional to text size, adding 4ch for padding leeway
+        const blankStyle = `width: ${maxOptLength + 4}ch; min-width: 140px;`;
+
+        // Use fixed h to guarantee no resize jumps, align-middle prevents baseline floating, removed translate entirely.
+        const baseBlankClass = "inline-flex items-center justify-center align-middle h-[54px] md:h-[64px] px-2 font-bold mx-2 transition-colors duration-300 rounded-xl whitespace-nowrap box-border";
+
+        let blankSpan = '';
+        if (answered && selectedOption) {
+            const bgColor = isSelectedCorrect ? 'bg-emerald-100 text-emerald-800 border-emerald-400' : 'bg-rose-100 text-rose-800 border-rose-400';
+            blankSpan = `<span id="${sectionId}-blank-${idx}" style="${blankStyle}" class="${baseBlankClass} border-[3px] ${bgColor} shadow-sm"><span class="fade-in">${selectedOption.text}</span></span>`;
+        } else {
+            // Blank not filled yet. Including invisible text ensures the browser calculates identical font baseline to prevent vertical shifts.
+            blankSpan = `<span id="${sectionId}-blank-${idx}" style="${blankStyle}" class="${baseBlankClass} border-[3px] border-dashed border-slate-300 bg-slate-50/50 relative z-0"><span class="opacity-0 select-none">${options[0].text}</span></span>`;
+        }
+
+        let parsedText = '';
+        if (textSegments.length > 1) {
+            parsedText = textSegments.join(blankSpan);
+        } else {
+            parsedText = q.text + blankSpan;
+        }
+
+        let optionsHTML = '';
+        options.forEach((opt, optIdx) => {
+            let btnClass = `flex-[1_1_25%] min-w-[120px] p-3 md:p-4 rounded-xl border-2 transition-all font-bold text-xl md:text-2xl text-center shadow-sm relative `;
+            if (!answered) {
+                btnClass += `border-slate-200 bg-white text-slate-700 active:scale-95 md:hover:border-${theme}-300 md:hover:bg-${theme}-50 cursor-pointer`;
+            } else {
+                if (opt.isCorrect) btnClass += "bg-emerald-50 border-emerald-500 text-emerald-800 opacity-100 shadow-md";
+                else if (selectedOption === opt) btnClass += "bg-rose-50 border-rose-400 text-rose-600 grayscale opacity-70";
+                else btnClass += "bg-slate-50 border-slate-100 text-slate-400 opacity-40 grayscale";
+                btnClass += " cursor-default";
+            }
+            optionsHTML += `<button id="${sectionId}-opt-${idx}-${optIdx}" ${answered ? 'disabled' : ''} onclick="App.handleTapToFillAnswer('${sectionId}', ${idx}, ${optIdx})" class="${btnClass}"><span>${opt.text}</span></button>`;
+        });
+
+        return `
+                <div id="${sectionId}-q-${idx}" class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-200 mb-8 relative transition-colors duration-300 flex flex-col justify-start ${ringClass}">
+                    <div class="bg-slate-50 p-6 md:p-8 rounded-xl border border-slate-100 mb-8 w-full mx-auto text-center">
+                        <div class="flex items-center justify-between mb-6">
+                            <span class="text-${theme}-600 font-bold text-lg md:text-xl">السؤال ${toArabicNum(idx + 1)}</span>
+                            <button onclick="App.toggleHint('${sectionId}', ${idx})" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-lg md:text-xl font-bold transition-all active:scale-95 text-amber-500 md:hover:bg-amber-50">💡 تلميح</button>
+                        </div>
+                        <h3 class="text-3xl md:text-4xl leading-[2.2] md:leading-[2.2] text-slate-800 font-semibold mb-2 mx-auto max-w-2xl px-2" style="font-family: 'Readex Pro', sans-serif;">${parsedText}</h3>
+                        
+                        <div id="hint-area-${sectionId}-${idx}" class="${showHint ? `block w-full ${hintFadeClass}` : 'hidden'} mt-5 max-w-2xl mx-auto">
+                            ${AppHelpers.getHintBoxHTML(q.hint)}
+                        </div>
+                    </div>
+                    
+                    <div id="options-area-${sectionId}-${idx}" class="flex flex-row flex-wrap justify-center gap-4 mx-auto w-full max-w-3xl">
+                        ${optionsHTML}
+                    </div>
+                    
+                    <div id="feedback-area-${sectionId}-${idx}" class="${answered ? `block w-full ${answerFadeClass} max-w-2xl mx-auto` : 'hidden'} mt-6">
+                        ${answered ? AppHelpers.getFeedbackBoxHTML(isSelectedCorrect, q.explanation, 'أحسنت الاختيار', 'إجابة خاطئة، لكن لا بأس!') : ''}
+                    </div>
+                </div>`;
+    },
+
+    handleTapToFillAnswer(sectionId, qIdx, optIdx) {
+        const state = this.state.sectionData[sectionId];
+        const qState = state[qIdx];
+        if (qState.answered) return;
+
+        qState.selectedOption = qState.options[optIdx];
+        this.finalizeTapToFillAnswer(sectionId, qIdx);
+    },
+
+    finalizeTapToFillAnswer(sectionId, qIdx) {
+        const state = this.state.sectionData[sectionId];
+        const progress = this.state.progress[sectionId];
+        const qState = state[qIdx];
+        const sectionDef = APP_DATA.sections.find(s => s.id === sectionId);
+
+        qState.answered = true;
+        qState.answerAnimate = true;
+
+        if (qState.selectedOption.isCorrect) progress.score += 1;
+        progress.answered += 1;
+
+        const isComplete = progress.answered === progress.total;
+
+        const wrapper = document.getElementById(`${sectionId}-wrapper-${qIdx}`);
+        if (wrapper) {
+            wrapper.innerHTML = this.renderTapToFillCard(qState, qIdx, sectionId, sectionDef.theme);
+        }
+
+        if (isComplete) {
+            this.showSectionResult(sectionId, sectionDef, progress);
+            this.updateTabs();
+            this.checkFinalEvaluation();
+        }
+    },
+
     handleGlobalRestart() { this.initSectionData(); if (APP_DATA.sections.length > 0) this.state.activeTab = APP_DATA.sections[0].id; this.updateUI(); this.scrollTabIntoView(this.state.activeTab); requestAnimationFrame(() => { const header = document.getElementById('main-header'); window.scrollTo({ top: header ? header.offsetHeight : 80, behavior: 'smooth' }); }); },
 
     checkFinalEvaluation(forceShow = false) {
