@@ -1964,7 +1964,7 @@ const App = {
         }
 
         // 2. إعادة تعيين بيانات القسم (State) بناءً على النوع بدقة
-        if (secDef.type === 'mcq') { this.state.sectionData[sectionId] = secDef.questions.map(q => ({ originalQuestion: q, options: shuffleArray(q.options.map((opt, oIdx) => ({ text: opt, isCorrect: oIdx === q.correct }))), answered: false, selectedOption: null, showHint: false, hintAnimate: false, answerAnimate: false })); }
+        if (secDef.type === 'mcq' || secDef.type === 'tap_to_fill') { this.state.sectionData[sectionId] = secDef.questions.map(q => ({ originalQuestion: q, options: shuffleArray(q.options.map((opt, oIdx) => ({ text: opt, isCorrect: oIdx === q.correct }))), answered: false, selectedOption: null, showHint: false, hintAnimate: false, answerAnimate: false })); }
         else if (secDef.type === 'classify') { let placedItems = {}; secDef.categories.forEach(c => placedItems[c.id] = []); this.state.sectionData[sectionId] = { questions: shuffleArray(secDef.questions).map(q => ({ originalQuestion: q, showHint: false, hintAnimate: false })), currentIndex: 0, status: 'idle', placedItems: placedItems, animatingOut: false }; }
         else if (secDef.type === 'error_correction') {
             this.state.sectionData[sectionId] = secDef.questions.map(q => ({
@@ -2025,10 +2025,10 @@ const App = {
         // Calculate the maximum length among the options to reserve consistent space
         const maxOptLength = Math.max(...options.map(o => o.text.length));
         // Using 'ch' unit ensures width is proportional to text size, adding 4ch for padding leeway
-        const blankStyle = `width: ${maxOptLength + 4}ch; min-width: 140px;`;
+        const blankStyle = `width: ${maxOptLength + 4}ch; min-width: 100px; max-width: 100%;`;
 
-        // Use fixed h to guarantee no resize jumps, align-middle prevents baseline floating, removed translate entirely.
-        const baseBlankClass = "inline-flex items-center justify-center align-middle h-[54px] md:h-[64px] px-2 font-bold mx-2 transition-colors duration-300 rounded-xl whitespace-nowrap box-border";
+        // Use min-h to guarantee no resize jumps, align-middle prevents baseline floating, removed translate entirely.
+        const baseBlankClass = "inline-flex items-center justify-center align-middle min-h-[54px] md:min-h-[64px] h-auto py-2 md:py-0 px-3 font-bold mx-1 md:mx-2 transition-colors duration-300 rounded-xl whitespace-normal break-words box-border text-center leading-tight";
 
         let blankSpan = '';
         if (answered && selectedOption) {
